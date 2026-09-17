@@ -1,0 +1,15 @@
+node_modules/
+.env
+*.log
+.DS_Store
+
+# Generated reports (default OUT_DIR is outside the repo, but catch local runs).
+audit-*-state.json
+audit-*-state.md
+audit-ld-only-*.md
+audit-ld-deprecation-check.*
+audit-our-off-for-all-history.*
+flag-diff-*.json
+flag-diff-*.md
+off-in-prod-bucketed.md
+out/

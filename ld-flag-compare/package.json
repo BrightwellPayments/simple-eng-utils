@@ -1,0 +1,27 @@
+{
+  "name": "ld-flag-compare",
+  "version": "0.2.0",
+  "private": true,
+  "type": "module",
+  "description": "Compare how LaunchDarkly flags resolve for two customer/environment pairs, and audit flag state per environment, via the LD REST API.",
+  "engines": {
+    "node": ">=20.6.0"
+  },
+  "scripts": {
+    "compare": "tsx src/index.ts",
+    "audit": "tsx src/auditProdState.ts",
+    "audit-ld-only": "tsx src/auditLdOnlyFlags.ts",
+    "flag-history": "tsx src/checkFlagHistory.ts",
+    "flag-history-ours": "tsx src/checkFlagHistory.ts --our-off-for-all",
+    "bucket-off-in-prod": "tsx src/bucketOffInProd.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.6.3"
+  }
+}
