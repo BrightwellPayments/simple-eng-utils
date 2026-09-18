@@ -18,6 +18,11 @@ function fmtValue(e: EvalResult): string {
   return '`' + JSON.stringify(v) + '`';
 }
 
+/** True when this side resolved via the flag's own off-toggle or fallthrough default. */
+function isOffOrDefault(e: EvalResult): boolean {
+  return e.determinate && (e.reason.kind === 'off' || e.reason.kind === 'fallthrough');
+}
+
 /** `Dash Solutions @ production` — disambiguates columns in both modes. */
 function columnHeader(side: Side): string {
   return `${side.customer.name} @ ${side.env}`;
@@ -42,8 +47,15 @@ export function renderMarkdown(
   project: string,
   generatedAt: string,
   full = false,
+  fullSide?: 'left' | 'right',
 ): string {
   const differs = rows.filter((r) => r.cls === 'differs');
+  const differsOther = differs.filter(
+    (r) => !(isOffOrDefault(r.left) && isOffOrDefault(r.right)),
+  );
+  const differsOffDefault = differs.filter(
+    (r) => isOffOrDefault(r.left) && isOffOrDefault(r.right),
+  );
   const indet = rows.filter((r) => r.cls === 'indeterminate');
   const missing = rows.filter((r) => r.cls === 'missing-in-env');
   const same = rows.filter((r) => r.cls === 'same');
@@ -76,16 +88,40 @@ export function renderMarkdown(
   out.push('');
   if (differs.length === 0) {
     out.push('_No differences — both sides resolve every flag to the same value._');
+    out.push('');
   } else {
-    out.push(`| flag_key | ${L} | ${R} | why (left / right) |`);
-    out.push('|---|---|---|---|');
-    for (const r of differs) {
+    if (differsOther.length === 0) {
+      out.push('_No targeting-driven differences — see the off/default group below._');
+      out.push('');
+    } else {
+      out.push(`| flag_key | ${L} | ${R} | why (left / right) |`);
+      out.push('|---|---|---|---|');
+      for (const r of differsOther) {
+        out.push(
+          `| \`${r.key}\` | ${fmtValue(r.left)} | ${fmtValue(r.right)} | ${r.leftWhy} / ${r.rightWhy} |`,
+        );
+      }
+      out.push('');
+    }
+
+    if (differsOffDefault.length) {
+      out.push('### Off/default (both sides)');
+      out.push('');
       out.push(
-        `| \`${r.key}\` | ${fmtValue(r.left)} | ${fmtValue(r.right)} | ${r.leftWhy} / ${r.rightWhy} |`,
+        '_Both sides resolved via their own off-toggle or fallthrough default. Usually not ' +
+          'what you\'re looking for, but kept here for completeness._',
       );
+      out.push('');
+      out.push(`| flag_key | ${L} | ${R} | why (left / right) |`);
+      out.push('|---|---|---|---|');
+      for (const r of differsOffDefault) {
+        out.push(
+          `| \`${r.key}\` | ${fmtValue(r.left)} | ${fmtValue(r.right)} | ${r.leftWhy} / ${r.rightWhy} |`,
+        );
+      }
+      out.push('');
     }
   }
-  out.push('');
 
   if (missing.length) {
     out.push('## Flag exists in only one environment');
@@ -115,16 +151,27 @@ export function renderMarkdown(
   }
 
   if (full) {
-    out.push('## Full comparison (all flags)');
-    out.push('');
-    out.push(`| flag_key | ${L} | ${R} | why (left / right) |`);
-    out.push('|---|---|---|---|');
-    for (const r of rows) {
-      out.push(
-        `| \`${r.key}\` | ${fmtValue(r.left)} | ${fmtValue(r.right)} | ${r.leftWhy} / ${r.rightWhy} |`,
-      );
+    if (fullSide !== 'right') {
+      out.push(`## Full comparison — ${L}`);
+      out.push('');
+      out.push('| flag_key | value | reason |');
+      out.push('|---|---|---|');
+      for (const r of rows) {
+        out.push(`| \`${r.key}\` | ${fmtValue(r.left)} | ${r.leftWhy} |`);
+      }
+      out.push('');
     }
-    out.push('');
+
+    if (fullSide !== 'left') {
+      out.push(`## Full comparison — ${R}`);
+      out.push('');
+      out.push('| flag_key | value | reason |');
+      out.push('|---|---|---|');
+      for (const r of rows) {
+        out.push(`| \`${r.key}\` | ${fmtValue(r.right)} | ${r.rightWhy} |`);
+      }
+      out.push('');
+    }
   }
 
   return out.join('\n');

@@ -43,7 +43,9 @@ Compare LaunchDarkly flag values across two (environment, customer) sides.
   --no-resolve-keys        never look up context keys; evaluate on name alone
   --project <key>          LD project key (default: $LD_PROJECT_KEY or ready-remit)
   --out <dir>              output directory (default: $OUT_DIR or ../../Plans)
-  --full                   also print/write every flag, including identical ones
+  --full [left|right|<env>]  also print/write every flag, including identical ones;
+                             optionally limit the full list to one side, by "left"/"right"
+                             or by that side's environment name (e.g. --full production)
   -h, --help               this text
 
 Environments in the ReadyRemit project: qa, staging, sandbox, uat, dev, production.
@@ -118,7 +120,27 @@ async function main() {
   }
 
   const resolveKeys = args['no-resolve-keys'] !== true;
-  const full = args['full'] === true;
+  const fullArg = args['full'];
+  let full = false;
+  let fullSide: 'left' | 'right' | undefined;
+  if (fullArg === true) {
+    full = true;
+  } else if (typeof fullArg === 'string') {
+    full = true;
+    const v = fullArg.toLowerCase();
+    if (v === 'left' || v === 'right') {
+      fullSide = v;
+    } else if (v === leftEnv.toLowerCase()) {
+      fullSide = 'left';
+    } else if (v === rightEnv.toLowerCase()) {
+      fullSide = 'right';
+    } else {
+      fail(
+        `--full value "${fullArg}" doesn't match "left", "right", or either environment ` +
+          `(${leftEnv}, ${rightEnv}).`,
+      );
+    }
+  }
   const client = new LdClient(token);
 
   console.error(`Resolving customers in ${leftEnv} / ${rightEnv}…`);
@@ -170,7 +192,7 @@ async function main() {
   );
 
   const generatedAt = new Date().toISOString();
-  const markdown = renderMarkdown(rows, left, right, project, generatedAt, full);
+  const markdown = renderMarkdown(rows, left, right, project, generatedAt, full, fullSide);
   const json = renderJson(rows, left, right, project, generatedAt, full);
 
   const base = outputBasename(left, right);
